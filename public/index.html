@@ -16,11 +16,11 @@
             </div>
             <div class="flex items-center gap-4">
                 <select id="lang-select" onchange="changeLanguage()" class="bg-green-700 text-white border border-green-500 rounded-lg px-3 py-1 font-semibold focus:outline-none">
-                    <option value="hy">🇦🇲 Հայերեն</option>
-                    <option value="en">🇬🇧 English</option>
+                    <option value="hy">AM Հայերեն</option>
+                    <option value="en">GB English</option>
                 </select>
                 <div class="bg-white text-green-700 px-4 py-2 rounded-xl font-bold shadow">
-                    <span id="txt-points-label">Միավորներ՝</span> <span id="user-points">350</span> 🪙
+                    <span id="txt-points-label">Միավորներ՝</span> <span id="user-points">550</span> 🪙
                 </div>
             </div>
         </header>
@@ -29,7 +29,7 @@
             <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div class="bg-white p-4 rounded-xl shadow border border-green-100 text-center">
                     <h3 class="text-gray-500 text-sm" id="stat-l1">Հավաքված աղբ</h3>
-                    <p id="stat-waste" class="text-2xl font-bold text-green-600">1450 կգ</p>
+                    <p id="stat-waste" class="text-2xl font-bold text-green-600">1452 կգ</p>
                 </div>
                 <div class="bg-white p-4 rounded-xl shadow border border-green-100 text-center">
                     <h3 class="text-gray-500 text-sm" id="stat-l2">Ակտիվ ընտանիքներ</h3>
@@ -37,11 +37,11 @@
                 </div>
                 <div class="bg-white p-4 rounded-xl shadow border border-green-100 text-center">
                     <h3 class="text-gray-500 text-sm" id="stat-l3">Բիոգազ</h3>
-                    <p id="stat-biogas" class="text-2xl font-bold text-green-600">560 մ³</p>
+                    <p id="stat-biogas" class="text-2xl font-bold text-green-600">560.8 մ³</p>
                 </div>
                 <div class="bg-white p-4 rounded-xl shadow border border-green-100 text-center">
                     <h3 class="text-gray-500 text-sm" id="stat-l4">Պարարտանյութ</h3>
-                    <p id="stat-fert" class="text-2xl font-bold text-green-600">720 կգ</p>
+                    <p id="stat-fert" class="text-2xl font-bold text-green-600">721 կգ</p>
                 </div>
             </section>
 
@@ -64,7 +64,7 @@
                     </div>
                     <div>
                         <p id="deposit-msg" class="font-medium text-green-700"></p>
-                        <p id="validity-msg" class="text-sm text-gray-500 mt-1">⏳ Գործում է 30 օր հաշվեգրման պահից</p>
+                        <p id="validity-msg" class="text-sm text-gray-500 mt-1"></p>
                     </div>
                 </div>
             </section>
@@ -82,6 +82,8 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         let currentLang = 'hy';
+        let rawPartnersData = [];
+
         const translations = {
             hy: {
                 title: "BioCycle-AM 🌿",
@@ -97,7 +99,9 @@
                 simBtn: "Հանձնել և ստանալ Eco-Coins",
                 marketTitle: "🎁 B2B Զեղչերի Շուկա (Marketplace)",
                 buyBtn: "Ձեռք բերել",
-                validityText: "⏳ Գործում է 30 օր հաշվեգրման պահից"
+                validityText: "⏳ Գործում է 30 օր հաշվեգրման պահից",
+                unitWaste: "կգ",
+                unitGas: "մ³"
             },
             en: {
                 title: "BioCycle-AM 🌿",
@@ -113,7 +117,9 @@
                 simBtn: "Deposit & Get Eco-Coins",
                 marketTitle: "🎁 B2B Discount Marketplace",
                 buyBtn: "Redeem",
-                validityText: "⏳ Valid for 30 days from issuance"
+                validityText: "⏳ Valid for 30 days from issuance",
+                unitWaste: "kg",
+                unitGas: "m³"
             }
         };
 
@@ -132,7 +138,14 @@
             document.getElementById('sim-unit').innerText = t.simUnit;
             document.getElementById('sim-btn').innerText = t.simBtn;
             document.getElementById('market-title').innerText = t.marketTitle;
-            loadPartners();
+            
+            fetchStats();
+            renderPartners();
+            
+            const depResult = document.getElementById('deposit-result');
+            if(!depResult.classList.contains('hidden')) {
+                document.getElementById('validity-msg').innerText = t.validityText;
+            }
         }
 
         const map = L.map('map').setView([40.1872, 44.5152], 13);
@@ -141,24 +154,32 @@
         }).addTo(map);
 
         const bins = [
-            { name: "Smart Bin #1: Հանրապետության Հրապարակ", lat: 40.1776, lng: 44.5126 },
-            { name: "Smart Bin #2: Հյուսիսային Պողոտա", lat: 40.1833, lng: 44.5150 },
-            { name: "Smart Bin #3: ԵՊՀ Գլխավոր Մասնաշենք", lat: 40.1813, lng: 44.5264 },
-            { name: "Smart Bin #4: Կոմիտասի Պողոտա", lat: 40.2045, lng: 44.5118 },
-            { name: "Smart Bin #5: Դալմա Մոլլի Հարևանությամբ", lat: 40.1830, lng: 44.4855 }
+            { nameHy: "Smart Bin #1: Հանրապետության Հրապարակ", nameEn: "Smart Bin #1: Republic Square", lat: 40.1776, lng: 44.5126 },
+            { nameHy: "Smart Bin #2: Հյուսիսային Պողոտա", nameEn: "Smart Bin #2: Northern Avenue", lat: 40.1833, lng: 44.5150 },
+            { nameHy: "Smart Bin #3: ԵՊՀ Գլխավոր Մասնաշենք", nameEn: "Smart Bin #3: YSU Central Building", lat: 40.1813, lng: 44.5264 },
+            { nameHy: "Smart Bin #4: Կոմիտասի Պողոտա", nameEn: "Smart Bin #4: Komitas Avenue", lat: 40.2045, lng: 44.5118 },
+            { nameHy: "Smart Bin #5: Դալմա Մոլլի Հարևանությամբ", nameEn: "Smart Bin #5: Near Dalma Garden Mall", lat: 40.1830, lng: 44.4855 }
         ];
 
-        bins.forEach(bin => {
-            L.marker([bin.lat, bin.lng]).addTo(map).bindPopup(`<b>${bin.name}</b><br>Status: Online 🟢`);
-        });
+        let mapMarkers = [];
+        function updateMapMarkers() {
+            mapMarkers.forEach(m => map.removeLayer(m));
+            mapMarkers = [];
+            bins.forEach(bin => {
+                const name = currentLang === 'hy' ? bin.nameHy : bin.nameEn;
+                const marker = L.marker([bin.lat, bin.lng]).addTo(map).bindPopup(`<b>${name}</b><br>Status: Online 🟢`);
+                mapMarkers.push(marker);
+            });
+        }
 
         async function fetchStats() {
             const res = await fetch('/api/stats');
             const data = await res.json();
-            document.getElementById('stat-waste').innerText = data.totalWasteCollectedKg + ' կգ';
+            const t = translations[currentLang];
+            document.getElementById('stat-waste').innerText = `${data.totalWasteCollectedKg} ${t.unitWaste}`;
             document.getElementById('stat-households').innerText = data.activeHouseholds;
-            document.getElementById('stat-biogas').innerText = data.biogasProducedM3 + ' մ³';
-            document.getElementById('stat-fert').innerText = data.fertilizerProducedKg + ' կգ';
+            document.getElementById('stat-biogas').innerText = `${data.biogasProducedM3} ${t.unitGas}`;
+            document.getElementById('stat-fert').innerText = `${data.fertilizerProducedKg} ${t.unitWaste}`;
         }
 
         async function fetchUser() {
@@ -169,25 +190,32 @@
 
         async function loadPartners() {
             const res = await fetch('/api/partners');
-            const partners = await res.json();
+            rawPartnersData = await res.json();
+            renderPartners();
+        }
+
+        function renderPartners() {
             const grid = document.getElementById('partners-grid');
             const t = translations[currentLang];
             grid.innerHTML = '';
-            partners.forEach(p => {
+            rawPartnersData.forEach(p => {
+                const category = p.category[currentLang];
+                const discount = p.discount[currentLang];
                 grid.innerHTML += `
                     <div class="border p-4 rounded-xl flex flex-col justify-between shadow-sm bg-gray-50">
                         <div>
-                            <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-semibold">${p.category}</span>
+                            <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-semibold">${category}</span>
                             <h4 class="font-bold text-lg mt-2">${p.name}</h4>
-                            <p class="text-sm text-gray-600 mt-1">${p.discount}</p>
+                            <p class="text-sm text-gray-600 mt-1">${discount}</p>
                         </div>
                         <div class="mt-4 flex justify-between items-center">
                             <span class="text-sm font-bold text-green-700">${p.cost} Coins</span>
-                            <button onclick="redeemCoupon(${p.cost}, '${p.name}', '${p.discount}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition">${t.buyBtn}</button>
+                            <button onclick="redeemCoupon(${p.cost}, '${p.name}', '${discount}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition">${t.buyBtn}</button>
                         </div>
                     </div>
                 `;
             });
+            updateMapMarkers();
         }
 
         async function depositWaste() {
@@ -202,7 +230,9 @@
             
             document.getElementById('deposit-result').classList.remove('hidden');
             document.getElementById('qr-code-text').innerText = data.qrCode;
-            document.getElementById('deposit-msg').innerText = (currentLang === 'hy' ? `Հաջողությամբ հանձնվեց ${weight} կգ աղբ։ Ստացաք +${data.earnedCoins} Eco-Coins!` : `Successfully deposited ${weight} kg. Earned +${data.earnedCoins} Eco-Coins!`);
+            document.getElementById('deposit-msg').innerText = currentLang === 'hy' 
+                ? `Հաջողությամբ հանձնվեց ${weight} կգ աղբ։ Ստացաք +${data.earnedCoins} Eco-Coins!`
+                : `Successfully deposited ${weight} kg of waste! Earned +${data.earnedCoins} Eco-Coins!`;
             document.getElementById('validity-msg').innerText = t.validityText;
             
             fetchStats();
@@ -226,7 +256,7 @@
                 fetchUser();
             } else {
                 resultBox.className = "mt-4 p-4 bg-red-50 border border-red-200 rounded-xl";
-                document.getElementById('redeem-msg').innerText = data.message;
+                document.getElementById('redeem-msg').innerText = currentLang === 'hy' ? data.messageHy : data.messageEn;
             }
         }
 
