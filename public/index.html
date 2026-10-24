@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BioCycle-AM | Yerevan Eco-Loop Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+    <div class="max-w-4xl mx-auto p-6">
+        <header class="bg-green-600 text-white p-6 rounded-2xl shadow-lg mb-8 flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold">BioCycle-AM 🌿</h1>
+                <p class="text-green-100">Երևանի օրգանական աղբի վերամշակման և էկո-բոնուսների պլատֆորմ</p>
+            </div>
+            <div class="bg-white text-green-700 px-4 py-2 rounded-xl font-bold shadow">
+                Ձեր միավորները՝ <span id="user-points">250</span> 🪙
+            </div>
+        </header>
+
+        <main class="grid gap-8">
+            <!-- Stats Section -->
+            <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-white p-4 rounded-xl shadow border border-green-100 text-center">
+                    <h3 class="text-gray-500 text-sm">Հավաքված աղբ</h3>
+                    <p id="stat-waste" class="text-2xl font-bold text-green-600">1250 կգ</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow border border-green-100 text-center">
+                    <h3 class="text-gray-500 text-sm">Ակտիվ ընտանիքներ</h3>
+                    <p id="stat-households" class="text-2xl font-bold text-green-600">340</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow border border-green-100 text-center">
+                    <h3 class="text-gray-500 text-sm">Բիոգազ</h3>
+                    <p id="stat-biogas" class="text-2xl font-bold text-green-600">480 մ³</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow border border-green-100 text-center">
+                    <h3 class="text-gray-500 text-sm">Պարարտանյութ</h3>
+                    <p id="stat-fert" class="text-2xl font-bold text-green-600">620 կգ</p>
+                </div>
+            </section>
+
+            <!-- Simulator Section -->
+            <section class="bg-white p-6 rounded-2xl shadow">
+                <h2 class="text-xl font-bold mb-4 text-green-700">♻️ Սմարթ Արկղի Սիմուլյատոր (Աղբի հանձնում)</h2>
+                <div class="flex gap-4 items-center">
+                    <input type="number" id="waste-weight" value="2" min="0.5" step="0.5" class="border p-2 rounded-lg w-32">
+                    <span class="text-gray-600">կգ օրգանական աղբ</span>
+                    <button onclick="depositWaste()" class="bg-green-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-700 transition">Հանձնել և ստանալ Eco-Coins</button>
+                </div>
+                <p id="deposit-msg" class="mt-3 text-sm font-medium text-green-600"></p>
+            </section>
+
+            <!-- Marketplace Section -->
+            <section class="bg-white p-6 rounded-2xl shadow">
+                <h2 class="text-xl font-bold mb-4 text-green-700">🎁 B2B Զեղչերի Շուկա (Marketplace)</h2>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="border p-4 rounded-xl flex justify-between items-center">
+                        <div>
+                            <h4 class="font-bold">Yerevan City - 10% զեղչ մրգերի համար</h4>
+                            <p class="text-sm text-gray-500">Արժեքը՝ 100 Eco-Coins</p>
+                        </div>
+                        <button onclick="redeemCoupon(100, 'Yerevan City')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">Ձեռք բերել</button>
+                    </div>
+                    <div class="border p-4 rounded-xl flex justify-between items-center">
+                        <div>
+                            <h4 class="font-bold">Tumanyan Shaurma - Անվճար ըմպելիք</h4>
+                            <p class="text-sm text-gray-500">Արժեքը՝ 200 Eco-Coins</p>
+                        </div>
+                        <button onclick="redeemCoupon(200, 'Tumanyan Shaurma')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">Ձեռք բերել</button>
+                    </div>
+                </div>
+                <p id="redeem-msg" class="mt-3 text-sm font-medium text-blue-600"></p>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        async function fetchStats() {
+            const res = await fetch('/api/stats');
+            const data = await res.json();
+            document.getElementById('stat-waste').innerText = data.totalWasteCollectedKg + ' կգ';
+            document.getElementById('stat-households').innerText = data.activeHouseholds;
+            document.getElementById('stat-biogas').innerText = data.biogasProducedM3 + ' մ³';
+            document.getElementById('stat-fert').innerText = data.fertilizerProducedKg + ' կգ';
+        }
+
+        async function fetchUser() {
+            const res = await fetch('/api/user');
+            const data = await res.json();
+            document.getElementById('user-points').innerText = data.points;
+        }
+
+        async function depositWaste() {
+            const weight = document.getElementById('waste-weight').value;
+            const res = await fetch('/api/deposit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ weight })
+            });
+            const data = await res.json();
+            document.getElementById('deposit-msg').innerText = data.message + ` (+${data.earnedCoins} Eco-Coins)`;
+            fetchStats();
+            fetchUser();
+        }
+
+        async function redeemCoupon(cost, partnerName) {
+            const res = await fetch('/api/redeem', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cost, partnerName })
+            });
+            const data = await res.json();
+            if(data.success) {
+                document.getElementById('redeem-msg').innerText = `${data.message} Կոդ՝ ${data.couponCode}`;
+                fetchUser();
+            } else {
+                document.getElementById('redeem-msg').innerText = data.message;
+            }
+        }
+
+        fetchStats();
+        fetchUser();
+    </script>
+</body>
+</html>
